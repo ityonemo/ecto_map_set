@@ -53,6 +53,7 @@ defmodule EctoMapSet do
   use Ecto.ParameterizedType
 
   @impl true
+  def type(%{untyped: :true}), do: :map
   def type(opts), do: {:array, opts[:of]}
 
   @impl true
@@ -61,6 +62,11 @@ defmodule EctoMapSet do
   end
 
   @impl true
+  def cast(data, %{untyped: :true}) do
+    result = MapSet.new(data)
+    {:ok, result}
+  end
+
   def cast(data, params) do
     result = MapSet.new(data, fn datum ->
       case Ecto.Type.cast(params.of, datum) do
@@ -75,6 +81,19 @@ defmodule EctoMapSet do
 
   @impl true
   def load(nil, _, _), do: {:ok, nil}
+
+  def load(data, _, %{untyped: :true}) do
+    result = MapSet.new(data, fn datum ->
+      datum
+      |> elem(0)
+      |> Base.decode64!
+      |> :erlang.binary_to_term
+    end)
+    {:ok, result}
+  rescue
+    error -> {:error, error}
+  end
+
   def load(data, loader, params) do
     result = MapSet.new(data, fn datum ->
       case loader.(params.of, datum) do
@@ -91,6 +110,18 @@ defmodule EctoMapSet do
 
   @impl true
   def dump(nil, _, _), do: {:ok, nil}
+
+  def dump(data, _, %{untyped: :true}) do
+    result = Map.new(data, fn datum ->
+      encoded = datum
+      |> :erlang.term_to_binary
+      |> Base.encode64
+
+      {encoded, true}
+    end)
+    {:ok, result}
+  end
+
   def dump(data, dumper, params) do
     result = Enum.map(data, fn datum ->
       case dumper.(params.of, datum) do

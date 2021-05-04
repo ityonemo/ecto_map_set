@@ -34,7 +34,8 @@ defmodule EctoMapSet.MixProject do
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:ecto_sql, "~> 3.6", only: :test},
       {:postgrex, ">= 0.0.0", only: :test},
-      {:elixir_uuid, ">= 0.0.0", only: :test}
+      {:elixir_uuid, ">= 0.0.0", only: :test},
+      {:jason, ">= 0.0.0", only: :test}
     ]
   end
 
@@ -44,7 +45,8 @@ defmodule EctoMapSet.MixProject do
   defp package, do: [
     name: "ecto_map_set",
     licenses: ["MIT"],
-    links: %{"GitHub" => "https://github.com/ityonemo/ecto_map_set"}
+    links: %{"GitHub" => "https://github.com/ityonemo/ecto_map_set"},
+    description: "MapSet support for ecto"
   ]
 
   def docs, do: [

@@ -3,6 +3,7 @@ defmodule EctoMapSetTest do
   alias EctoMapSetTest.Scalar
   alias EctoMapSetTest.Composite
   alias EctoMapSetTest.Repo
+  alias EctoMapSetTest.Untyped
 
   def checkout_ecto_sandbox(tags) do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(EctoMapSetTest.Repo)
@@ -88,6 +89,22 @@ defmodule EctoMapSetTest do
       |> Repo.insert
 
       assert %{vector: ^vector_set} = Repo.get(Composite, id)
+    end
+  end
+
+  describe "for untyped data" do
+    test "you can save whatever (really) in a MapSet" do
+      string = "foo bar"
+      integer = 47
+      pid = self()
+
+      untyped = MapSet.new([string, integer, pid])
+
+      assert {:ok, %{id: id, whatever: ^untyped}} = %{whatever: untyped}
+      |> Untyped.changeset()
+      |> Repo.insert
+
+      assert %{whatever: ^untyped} = Repo.get(Untyped, id)
     end
   end
 end
