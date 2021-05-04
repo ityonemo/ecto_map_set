@@ -64,6 +64,14 @@ defmodule EctoMapSet do
   end
 
   @impl true
+  def cast(data, %{of: :term, non_executable: true}) do
+    result = data
+    |> reject_nonexecutable
+    |> Mapset.new(data)
+    {:ok, result}
+  catch
+    :error -> :error
+  end
   def cast(data, %{of: :term}) do
     result = MapSet.new(data)
     {:ok, result}
@@ -80,6 +88,17 @@ defmodule EctoMapSet do
   catch
     error -> error
   end
+
+  defp reject_nonexecutable(fun) when is_function(fun), do: throw :error
+  defp reject_nonexecutable(enum) when is_list(enum) or is_map(enum) do
+    Enum.each(enum, &reject_nonexecutable/1)
+    enum
+  end
+  defp reject_nonexecutable(tup) when is_tuple(tup) do
+    tup |> Tuple.to_list |> reject_nonexecutable
+    tup
+  end
+  defp reject_nonexecutable(other), do: other
 
   @impl true
   def load(nil, _, _), do: {:ok, nil}
@@ -141,7 +160,7 @@ defmodule EctoMapSet do
   end
 
   defp binary_to_term_fn(opts) do
-    safety = List.wrap(unless opts[:safety] == :error, do: :safe)
+    safety = List.wrap(unless opts[:safety] == :unsafe, do: :safe)
     if opts[:non_executable] do
       &Plug.Crypto.non_executable_binary_to_term(&1, safety)
     else

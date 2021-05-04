@@ -4,6 +4,7 @@ defmodule EctoMapSetTest do
   alias EctoMapSetTest.Composite
   alias EctoMapSetTest.Repo
   alias EctoMapSetTest.Untyped
+  alias EctoMapSetTest.UntypedRaw
 
   def checkout_ecto_sandbox(tags) do
     :ok = Ecto.Adapters.SQL.Sandbox.checkout(EctoMapSetTest.Repo)
@@ -107,6 +108,59 @@ defmodule EctoMapSetTest do
       |> Repo.insert
 
       assert %{drop_unsafe: ^untyped} = Repo.get(Untyped, id)
+    end
+
+    # ETF encoding for the atom quuxquuxquux
+    @unsafe_atom <<131, 100, 0, 12, 113, 117, 117, 120, 113, 117, 117, 120, 113, 117, 117, 120>>
+    test "unsafe data is dropped in the default mode" do
+      assert {:ok, %{id: id}} = %{drop_unsafe: [@unsafe_atom, :erlang.term_to_binary("foo")]}
+      |> UntypedRaw.changeset()
+      |> Repo.insert
+
+      mapset = MapSet.new(["foo"])
+
+      assert %{drop_unsafe: ^mapset} = Repo.get(Untyped, id)
+    end
+
+    test "unsafe data errors in the safety: :errors mode" do
+      assert {:ok, %{id: id}} = %{error_unsafe: [@unsafe_atom, :erlang.term_to_binary("foo")]}
+      |> UntypedRaw.changeset()
+      |> Repo.insert
+
+      assert_raise ArgumentError, fn -> Repo.get(Untyped, id) end
+    end
+
+    @other_unsafe_atom <<131, 100, 0, 4, 120, 111, 120, 111>>
+
+    test "unsafe data comes through in the safety: :unsafe mode" do
+      assert {:ok, %{id: id}} = %{unsafe: [@other_unsafe_atom, :erlang.term_to_binary("foo")]}
+      |> UntypedRaw.changeset()
+      |> Repo.insert
+
+      assert Untyped
+      |> Repo.get(id)
+      |> Map.get(:unsafe)
+      |> Enum.any?(&(:erlang.term_to_binary(&1) == @other_unsafe_atom))
+    end
+
+    test "non-executable maps cannot take a function" do
+      refute Untyped.changeset(%{non_executable: [&(&1)]}).valid?
+      refute Untyped.changeset(%{non_executable: [[&(&1)]]}).valid? # hiding in a list
+      refute Untyped.changeset(%{non_executable: [{&(&1)}]}).valid? # hiding in a tuple
+      refute Untyped.changeset(%{non_executable: [%{&(&1) => []}]}).valid? # hiding in a map key
+      refute Untyped.changeset(%{non_executable: [%{[] => &(&1)}]}).valid? # hiding in a map value
+    end
+
+    test "functions get silently ignored (composes with safety)" do
+      fun_bin = :erlang.term_to_binary(&(&1))
+
+      assert {:ok, %{id: id}} = %{non_executable: [fun_bin, :erlang.term_to_binary("foo")]}
+      |> UntypedRaw.changeset()
+      |> Repo.insert
+
+      map_set = MapSet.new(["foo"])
+
+      assert %{non_executable: ^map_set} = Repo.get(Untyped, id)
     end
   end
 end
