@@ -3,8 +3,7 @@ defmodule EctoMapSet do
   MapSet support for Ecto.
 
   The MapSets are backed by arrays in postgres.  Currently untested in other
-  database engines.  A different package that backs the MapSets, untyped, with
-  a map might be forthcoming.
+  database engines.
 
   ## Typed MapSets
 
