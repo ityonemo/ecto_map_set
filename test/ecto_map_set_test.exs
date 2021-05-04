@@ -97,8 +97,10 @@ defmodule EctoMapSetTest do
       string = "foo bar"
       integer = 47
       pid = self()
+      list = [:a, "b", 44, []]
+      map = %{[] => "yup"}
 
-      untyped = MapSet.new([string, integer, pid])
+      untyped = MapSet.new([string, integer, pid, list, map])
 
       assert {:ok, %{id: id, whatever: ^untyped}} = %{whatever: untyped}
       |> Untyped.changeset()
