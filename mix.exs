@@ -31,6 +31,7 @@ defmodule EctoMapSet.MixProject do
   defp deps do
     [
       {:ecto, "~> 3.6"},
+      {:plug_crypto, ">= 0.0.0", optional: true},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:ecto_sql, "~> 3.6", only: :test},
       {:postgrex, ">= 0.0.0", only: :test},

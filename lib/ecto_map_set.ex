@@ -53,7 +53,7 @@ defmodule EctoMapSet do
   use Ecto.ParameterizedType
 
   @impl true
-  def type(%{untyped: :true}), do: :map
+  def type(%{of: :term}), do: {:array, :string}
   def type(opts), do: {:array, opts[:of]}
 
   @impl true
@@ -62,7 +62,7 @@ defmodule EctoMapSet do
   end
 
   @impl true
-  def cast(data, %{untyped: :true}) do
+  def cast(data, %{of: :term}) do
     result = MapSet.new(data)
     {:ok, result}
   end
@@ -82,12 +82,14 @@ defmodule EctoMapSet do
   @impl true
   def load(nil, _, _), do: {:ok, nil}
 
-  def load(data, _, %{untyped: :true}) do
-    result = MapSet.new(data, fn datum ->
-      datum
-      |> elem(0)
-      |> Base.decode64!
-      |> :erlang.binary_to_term
+  def load(data, _, opts = %{of: :term}) do
+    decoder = if opts[:safe], do: &:erlang.binary_to_term(&1, [:safe]), else: &:erlang.binary_to_term/1
+
+    result = MapSet.new(data, fn
+      datum ->
+        datum
+        |> Base.decode64!
+        |> decoder.()
     end)
     {:ok, result}
   rescue
@@ -111,13 +113,11 @@ defmodule EctoMapSet do
   @impl true
   def dump(nil, _, _), do: {:ok, nil}
 
-  def dump(data, _, %{untyped: :true}) do
-    result = Map.new(data, fn datum ->
-      encoded = datum
+  def dump(data, _, %{of: :term}) do
+    result = Enum.map(data, fn datum ->
+      datum
       |> :erlang.term_to_binary
       |> Base.encode64
-
-      {encoded, true}
     end)
     {:ok, result}
   end
