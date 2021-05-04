@@ -102,11 +102,11 @@ defmodule EctoMapSetTest do
 
       untyped = MapSet.new([string, integer, pid, list, map])
 
-      assert {:ok, %{id: id, whatever: ^untyped}} = %{whatever: untyped}
+      assert {:ok, %{id: id, drop_unsafe: ^untyped}} = %{drop_unsafe: untyped}
       |> Untyped.changeset()
       |> Repo.insert
 
-      assert %{whatever: ^untyped} = Repo.get(Untyped, id)
+      assert %{drop_unsafe: ^untyped} = Repo.get(Untyped, id)
     end
   end
 end

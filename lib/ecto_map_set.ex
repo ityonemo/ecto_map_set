@@ -52,13 +52,15 @@ defmodule EctoMapSet do
 
   use Ecto.ParameterizedType
 
+  @default_options %{safety: :drop}
+
   @impl true
-  def type(%{of: :term}), do: {:array, :string}
+  def type(%{of: :term}), do: {:array, :binary}
   def type(opts), do: {:array, opts[:of]}
 
   @impl true
   def init(opts) do
-    Enum.into(opts, %{})
+    Enum.into(opts, @default_options)
   end
 
   @impl true
@@ -82,18 +84,26 @@ defmodule EctoMapSet do
   @impl true
   def load(nil, _, _), do: {:ok, nil}
 
-  def load(data, _, opts = %{of: :term}) do
-    decoder = if opts[:safe], do: &:erlang.binary_to_term(&1, [:safe]), else: &:erlang.binary_to_term/1
-
-    result = MapSet.new(data, fn
-      datum ->
-        datum
-        |> Base.decode64!
-        |> decoder.()
+  def load(data, _, opts = %{of: :term, safety: :drop}) do
+    binary_to_term = binary_to_term_fn(opts)
+    result = data
+    |> Enum.flat_map(fn datum ->
+      try do
+        [binary_to_term.(datum)]
+      rescue
+        ArgumentError -> []
+      end
     end)
+    |> MapSet.new
+
     {:ok, result}
+  end
+
+  def load(data, _, opts = %{of: :term}) do
+    binary_to_term = binary_to_term_fn(opts)
+    {:ok, MapSet.new(data, binary_to_term)}
   rescue
-    error -> {:error, error}
+    ArgumentError -> :error
   end
 
   def load(data, loader, params) do
@@ -114,12 +124,7 @@ defmodule EctoMapSet do
   def dump(nil, _, _), do: {:ok, nil}
 
   def dump(data, _, %{of: :term}) do
-    result = Enum.map(data, fn datum ->
-      datum
-      |> :erlang.term_to_binary
-      |> Base.encode64
-    end)
-    {:ok, result}
+    {:ok, Enum.map(data, &:erlang.term_to_binary/1)}
   end
 
   def dump(data, dumper, params) do
@@ -133,6 +138,15 @@ defmodule EctoMapSet do
     {:ok, result}
   catch
     :error -> :error
+  end
+
+  defp binary_to_term_fn(opts) do
+    safety = List.wrap(unless opts[:safety] == :error, do: :safe)
+    if opts[:non_executable] do
+      &Plug.Crypto.non_executable_binary_to_term(&1, safety)
+    else
+      &:erlang.binary_to_term(&1, safety)
+    end
   end
 
   @impl true
