@@ -1,10 +1,12 @@
 defmodule EctoMapSet do
   @moduledoc """
-  Typed MapSet support for Ecto.
+  MapSet support for Ecto.
 
   The MapSets are backed by arrays in postgres.  Currently untested in other
   database engines.  A different package that backs the MapSets, untyped, with
   a map might be forthcoming.
+
+  ## Typed MapSets
 
   ### Migration Example:
 
@@ -48,6 +50,49 @@ defmodule EctoMapSet do
     field :vectors, EctoMapSet, of: {:array, :float}
   end
   ```
+
+  ## Untyped MapSets
+
+  ### Migration Example:
+
+  ```elixir
+  def change do
+    create table(:my_untyped_sets) do
+      add(:favorite_terms, {:array, :binary})
+    end
+  end
+  ```
+
+  ### Schema Example:
+
+  ```elixir
+  def MyUntypedSet do
+    use Ecto.Schema
+    schema "my_untyped_sets" do
+      field :favorite_terms, EctoMapSet, of: :term
+    end
+  end
+  ```
+
+  Then when you retrieve your row, the data will be marshalled into
+  a MapSet:
+
+  ```elixir
+  iex> Repo.get(MySet, id)
+  %MySet{favorite_terms: %MapSet<[#PID<0.107.0>, :foo, "bar"}}
+  ```
+
+  ### Safety
+
+  the `EctoMapSet` field declaration can take two safety options:
+  - `:safety` sets the safety level
+    - `:unsafe` returns an unsafe row with no safety checks.
+    - `:drop` returns an unsafe row with all unsafe data redacted from the set (default).
+    - `:errors` raises ArgumentError when you try to pull an unsafe row.
+  - `:non_executable`
+    - `true` any stored term with a lambda will trigger a safety check.  Note in order
+       to use this feature you must include the `plug_crypto` library.
+    - `false` or `nil` (default) only unsafe atoms are checked.
   """
 
   use Ecto.ParameterizedType
