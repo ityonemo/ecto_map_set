@@ -111,7 +111,7 @@ defmodule EctoMapSet do
   def cast(data, %{of: :term, non_executable: true}) do
     result = data
     |> reject_nonexecutable
-    |> Mapset.new(data)
+    |> MapSet.new(data)
     {:ok, result}
   catch
     :error -> :error
